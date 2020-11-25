@@ -1,4 +1,5 @@
 
+
 EGS <- function(datafile) {
 DS1 <-datafile %>% select("Admission Date/Time", "Surgical Procedure?", "First CT Date/Time", "First OR Date/Time", "Primary Surgical Dx Code", "Transfer in?")
 DS1NS <- DS1 %>% filter(`Surgical Procedure?`=="YES")

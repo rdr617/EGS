@@ -90,61 +90,62 @@ DS1NSTNA$Month <- month(DS1NSTNA$`First OR Date/Time`, label = TRUE, abbr = FALS
 Now, in any dataset,there are always outliers.  The shiny gadget titled "pick_points" is used to allow the user to visually exlude outliers.
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
-pick_points <- function(data, x, y) {
-  ui <- miniPage(
-    gadgetTitleBar(paste("Select points")),
-    miniContentPanel(padding = 0,
-      plotOutput("plot1", height = "100%", brush = "brush")
-    ),
-    miniButtonBlock(
-      actionButton("add", "", icon = icon("thumbs-up")),
-      actionButton("sub", "", icon = icon("thumbs-down")),
-      actionButton("none", "" , icon = icon("ban")),
-      actionButton("all", "", icon = icon("refresh"))
-    )
-  )
+#pick_points <- function(data, x, y) {
+#  ui <- miniPage(
+#    gadgetTitleBar(paste("Select points")),
+#    miniContentPanel(padding = 0,
+#      plotOutput("plot1", height = "100%", brush = "brush")
+#    ),
+#    miniButtonBlock(
+#      actionButton("add", "", icon = icon("thumbs-up")),
+#      actionButton("sub", "", icon = icon("thumbs-down")),
+#      actionButton("none", "" , icon = icon("ban")),
+#      actionButton("all", "", icon = icon("refresh"))
+#    )
+#  )
 
-  server <- function(input, output) {
+#  server <- function(input, output) {
     # For storing selected points
-    vals <- reactiveValues(keep = rep(TRUE, nrow(data)))
+#    vals <- reactiveValues(keep = rep(TRUE, nrow(data)))
 
-    output$plot1 <- renderPlot({
+#    output$plot1 <- renderPlot({
       # Plot the kept and excluded points as two separate data sets
-      keep    <- data[ vals$keep, , drop = FALSE]
-      exclude <- data[!vals$keep, , drop = FALSE]
+#      keep    <- data[ vals$keep, , drop = FALSE]
+#      exclude <- data[!vals$keep, , drop = FALSE]
 
-      ggplot(keep, aes_(x, y)) +
-        geom_point(data = exclude, color = "grey80") +
-        geom_point()
-    })
+#      ggplot(keep, aes_(x, y)) +
+#        geom_point(data = exclude, color = "grey80") +
+#        geom_point()
+#    })
 
     # Update selected points
-    selected <- reactive({
-      brushedPoints(data, input$brush, allRows = TRUE)$selected_
-    })
-    observeEvent(input$add,  vals$keep <- vals$keep | selected())
-    observeEvent(input$sub,  vals$keep <- vals$keep & !selected())
-    observeEvent(input$all,  vals$keep <- rep(TRUE, nrow(data)))
-    observeEvent(input$none, vals$keep <- rep(FALSE, nrow(data)))
+#    selected <- reactive({
+#      brushedPoints(data, input$brush, allRows = TRUE)$selected_
+#    })
+#    observeEvent(input$add,  vals$keep <- vals$keep | selected())
+#    observeEvent(input$sub,  vals$keep <- vals$keep & !selected())
+#    observeEvent(input$all,  vals$keep <- rep(TRUE, nrow(data)))
+#    observeEvent(input$none, vals$keep <- rep(FALSE, nrow(data)))
 
-    observeEvent(input$done, {
-      stopApp(vals$keep)
-    })
-    observeEvent(input$cancel, {
-      stopApp(NULL)
-    })
+#    observeEvent(input$done, {
+#      stopApp(vals$keep)
+#    })
+#    observeEvent(input$cancel, {
+#      stopApp(NULL)
+#    })
 
-  }
+#  }
 
-  runGadget(ui, server)
-}
-DS1NSTNA$Selected <- pick_points(DS1NSTNA, ~`First OR Date/Time`, ~TTOR)
+#  runGadget(ui, server)
+#}
+#DS1NSTNA$Selected <- pick_points(DS1NSTNA, ~`First OR Date/Time`, ~TTOR)
 ```
 
 The dataset is then edited to filter out the points as selected by the user. A column with category is created to facilitate plotting based on diagnosis code.
 
 ```{r}
-DS1NSTNAS <- DS1NSTNA %>% filter(Selected ==TRUE)
+#DS1NSTNAS <- DS1NSTNA %>% filter(Selected ==TRUE)
+DS1NSTNAS <- DS1NSTNA %>% filter(TTOR <= 10)
 NSTISet <- DS1NSTNAS %>% filter(`Primary Surgical Dx Code`  %in% c("M72.6", "N49.3"))
 NSTISet$Cat <- "NSTI"
 IschSet <- DS1NSTNAS %>% filter(str_detect(`Primary Surgical Dx Code`, "^K55"))
@@ -204,4 +205,4 @@ plotavbymonthPerf
 
 # **Future Work**
 
-While this function successfully generates the plots looking at our metrics for time to OR, there are other metrics/slides that we currently use each month in our operations meeting, such as overall volume, time to discharge, etc.  Future work will be to make the entire Operations powerpoint in r.  Additionally, it will be beneficial to allow selection and analysis for each subgroup utilizing Shiny's ability to brush points. In its current version, we remove outliers for all case types at one time.  We also plan to add additional functionality for presenting the outliers in table format so that they are easily identified for review. The current examples do not utilize any patient identifiers due to HIPAA. Once this function is being used internally, we would be able to include identifiers to easily flag patients that need review.
+While this function successfully generates the plots looking at our metrics for time to OR for our three targeted diagnoses, there are other metrics/slides that we currently use each month in our operations meeting, such as overall volume, time to discharge, etc.  Future work will be to make the entire Operations powerpoint in r.  Additionally, it will be beneficial to allow selection and analysis for each subgroup utilizing Shiny's ability to brush points. In its current version, we remove outliers for all case types at one time.  We also plan to add additional functionality for presenting the outliers in table format so that they are easily identified for review. The current examples do not utilize any patient identifiers due to HIPAA. Once this function is being used internally, we would be able to include identifiers to easily flag patients that need review.
