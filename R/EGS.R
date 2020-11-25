@@ -1,0 +1,106 @@
+
+EGS <- function(datafile) {
+DS1 <-datafile %>% select("Admission Date/Time", "Surgical Procedure?", "First CT Date/Time", "First OR Date/Time", "Primary Surgical Dx Code", "Transfer in?")
+DS1NS <- DS1 %>% filter(`Surgical Procedure?`=="YES")
+DS1NST <- DS1NS %>% mutate(`First CT Date/Time` = mdy_hm(`First CT Date/Time`)) %>% mutate(`First OR Date/Time` = mdy_hm(`First OR Date/Time`))
+DS1NSTNA <- DS1NST %>% drop_na(`First OR Date/Time`)
+
+
+DS1NSTNA$AOR <- round(difftime(DS1NSTNA$`First OR Date/Time`, DS1NSTNA$`Admission Date/Time`, units="hours"), 2)
+DS1NSTNA$CTOR <- round(difftime(DS1NSTNA$`First OR Date/Time`, DS1NSTNA$`First CT Date/Time`, units="hours"), 2)
+DS1NSTNA <- DS1NSTNA %>% drop_na(AOR)
+DS1NSTNA <- DS1NSTNA %>% drop_na(CTOR)
+DS1NSTNA$TTOR <- ifelse(DS1NSTNA[,6] == "YES", DS1NSTNA$AOR, DS1NSTNA$CTOR)
+DS1NSTNA$Month <- month(DS1NSTNA$`First OR Date/Time`, label = TRUE, abbr = FALSE)
+
+pick_points <- function(data, x, y) {
+  ui <- miniPage(
+    gadgetTitleBar(paste("Select points")),
+    miniContentPanel(padding = 0,
+                     plotOutput("plot1", height = "100%", brush = "brush")
+    ),
+    miniButtonBlock(
+      actionButton("add", "", icon = icon("thumbs-up")),
+      actionButton("sub", "", icon = icon("thumbs-down")),
+      actionButton("none", "" , icon = icon("ban")),
+      actionButton("all", "", icon = icon("refresh"))
+    )
+  )
+
+  server <- function(input, output) {
+    # For storing selected points
+    vals <- reactiveValues(keep = rep(TRUE, nrow(data)))
+
+    output$plot1 <- renderPlot({
+      # Plot the kept and excluded points as two separate data sets
+      keep    <- data[ vals$keep, , drop = FALSE]
+      exclude <- data[!vals$keep, , drop = FALSE]
+
+      ggplot(keep, aes_(x, y)) +
+        geom_point(data = exclude, color = "grey80") +
+        geom_point()
+    })
+
+    # Update selected points
+    selected <- reactive({
+      brushedPoints(data, input$brush, allRows = TRUE)$selected_
+    })
+    observeEvent(input$add,  vals$keep <- vals$keep | selected())
+    observeEvent(input$sub,  vals$keep <- vals$keep & !selected())
+    observeEvent(input$all,  vals$keep <- rep(TRUE, nrow(data)))
+    observeEvent(input$none, vals$keep <- rep(FALSE, nrow(data)))
+
+    observeEvent(input$done, {
+      stopApp(vals$keep)
+    })
+    observeEvent(input$cancel, {
+      stopApp(NULL)
+    })
+
+  }
+
+  runGadget(ui, server)
+}
+
+DS1NSTNA$Selected <- pick_points(DS1NSTNA, ~`First OR Date/Time`, ~TTOR)
+
+
+DS1NSTNAS <- DS1NSTNA %>% filter(Selected ==TRUE)
+NSTISet <- DS1NSTNAS %>% filter(`Primary Surgical Dx Code`  %in% c("M72.6", "N49.3"))
+NSTISet$Cat <- "NSTI"
+IschSet <- DS1NSTNAS %>% filter(str_detect(`Primary Surgical Dx Code`, "^K55"))
+IschSet$Cat <- "ISCH"
+PerfSet <- DS1NSTNAS %>% filter(str_detect(`Primary Surgical Dx Code`, "^K63|K25|K26|K57"))
+PerfSet$Cat <- "PERF"
+FinalSet <- rbind(NSTISet, IschSet, PerfSet)
+
+
+
+boxp <- ggplot(FinalSet, aes(Cat, as.numeric(TTOR))) + geom_boxplot(fill="steelblue", outlier.shape = NA) + labs(title = "Time to OR by Diagnosis", x= "Diagnosis", y= "Time to OR in Hours") + theme_light() + theme(plot.title = element_text(hjust = 0.5)) + geom_jitter(width=0.05, color = "red")
+boxp
+
+avtimes <- as.numeric(c(round(mean(NSTISet$TTOR), 2), round(mean(IschSet$TTOR), 2), round(mean(PerfSet$TTOR),2)))
+titles <- c("NSTI", "Ischemia", "Perforation")
+avbydx <- cbind.data.frame(titles, avtimes)
+
+Plotavbydx <- ggplot(avbydx, aes(x = titles,y = avtimes)) +geom_col(fill="steelblue") + labs(title = "YTD Average Time to OR", x= "Diagnosis", y= "Time to OR in Hours") + theme(plot.title = element_text(hjust = 0.5)) + geom_text(aes(label=avtimes), vjust=-0.3, size=3.5)+ theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
+Plotavbydx
+
+
+avbymonth <- aggregate(x=FinalSet$TTOR, by =  list(FinalSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+plotavbymonth <- ggplot(avbymonth, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="red", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month", y= "Time to OR in Hours") +  theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=0, nudge_y = .5)
+plotavbymonth
+
+
+avbymonthNSTI <- aggregate(x=NSTISet$TTOR, by = list(NSTISet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+plotavbymonthNSTI <- ggplot(avbymonthNSTI, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for NSTI", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthNSTI
+avbymonthIsch <- aggregate(x=IschSet$TTOR, by = list(IschSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+plotavbymonthIsch <- ggplot(avbymonthIsch, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Ischemia", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthIsch
+avbymonthPerf <- aggregate(x=PerfSet$TTOR, by = list(PerfSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+plotavbymonthPerf <- ggplot(avbymonthPerf, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Perforations", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthPerf
+}
+
+

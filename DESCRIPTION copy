@@ -1,0 +1,18 @@
+Package: EGS
+Type: Package
+Title: Analysis Tool for EGS Data Analysis
+Version: 0.1.0
+Author: Rachel Rodriguez <rdr617@gmail.com>
+Maintainer: Rachel Rodriguez <rdr617@gmail.com>
+Description: The software uses a standard export file from the Indiana
+    University EGS registry and calculates time to OR based on the admission
+    time for transfers or CT for nontransfers for three high case fatality
+    diagnoses: necrotizing soft tissue infections, free perforations, and bowel
+    ischemia
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
