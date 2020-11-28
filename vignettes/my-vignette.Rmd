@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-#library(EGS)
+#library(EGS2)
 
 ```
 
@@ -29,11 +29,19 @@ Outcome and process improvement data is reviewed monthly at the ACS Operations M
 
 The aim of this package is to input the raw data file, tidy the data, calculate the appropriate time to OR, and create the graphics for the presentation, saving a substantial amount of time over the course of a year.
 
-To accomplish this, the user imports an data file from the registry. The column names must match the default output of the EGS registry and be labeled as "Admission Date/Time", "Surgical Procedure?", "First CT Date/Time", "First OR Date/Time", "Primary Surgical Dx Code", and "Transfer in?". Since the package is targeted to users of this specific database, this should not be an issue unless the user has manually changed the name.
+To accomplish this, the user imports a data file from the registry. The column names must match the default output of the EGS registry and be labeled as "Admission Date/Time", "Surgical Procedure?", "First CT Date/Time", "First OR Date/Time", "Primary Surgical Dx Code", and "Transfer in?". Since the package is targeted to users of this specific database, this should not be an issue unless the user has manually changed the name.
 
 The data frame is then simply inputted into the EGS() function which automatically edits the data to include only the three types of cases noted above, and then calculates the time to OR appropriately based on the transfer/nontransfer status.  The time to OR will then be plotted for each of the three surgical indications. The average will be presented for each month of the year to date.  A shiny gadget allows the user to graphically exclude outliers. 
 
 An included R markdown file titled "EGSOps.Rmd" in the vignettes folder allows the code to be directly used to make powerpoint slides.
+
+In summary, there are three challenges that the software addresses:
+
+1. Reducing workload of data staff by generating the operations slides for analysis with a simple command rather than hours of manual data manipulation.
+
+2. Allowing rapid, simple exclusion of outliers by the user through a shiny gadget rather than manually editing the excel spreadsheet
+
+3. Ability to do more quality graphical representations than what has previously been made by the data team without adding time to the process.
 
 # **Examples**
 ```{r, echo = TRUE, message=FALSE, warning=FALSE}
@@ -61,13 +69,13 @@ X2020_EGS_Quality_Data <- read_excel("~/Documents/MS Biostatistics/B581 Biostats
 ```
 
 If the package has been loaded, we can now utilize the function EGS() in the console
-EGS(X2020_EGS_Quality_Data)
+One can simply enter in the console "EGS(X2020_EGS_Quality_Data)"
 
 Individual plots can then be called and exported as the user would like.
 
-However, to show how this function works, we are going to go through the code in the function step-by-step.
+However, to show how this function works, we are going to go through the code within the function step-by-step.
 
-First, the data is filtered to only include the columns that are needed. The nonsurgical cases are removed, and the dates are converted using the lubridate package.
+First, the data is filtered to only include the columns that are needed. The nonsurgical cases are removed, and the dates are converted using the lubridate package.  The actual function "EGS" allows the user to input a data file with any title into the function. For this vignette example, we have manually called the example file.
 
 ```{r, warning=FALSE}
 DS1 <-X2020_EGS_Quality_Data %>% select("Admission Date/Time", "Surgical Procedure?", "First CT Date/Time", "First OR Date/Time", "Primary Surgical Dx Code", "Transfer in?")
@@ -76,7 +84,7 @@ DS1NST <- DS1NS %>% mutate(`First CT Date/Time` = mdy_hm(`First CT Date/Time`)) 
 DS1NSTNA <- DS1NST %>% drop_na(`First OR Date/Time`)
 ```
 
-Next, two new variables are calculated, AOR and CTOR, which are the admission to OR times and the CT to OR times. Lubridate is used, and the result in hours is rounded to two decimal places. Subsequently, ifelse is used to select the admission to OR or the CT to OR time based on the transfer status of the patient and placed in the new column TTOR. Additionally, a column called Month is added in order to facilitate plotting later.
+Next, two new variables are calculated, AOR and CTOR, which are the admission to OR times and the CT to OR times. Lubridate is used, and the result in hours is rounded to two decimal places. Subsequently, ifelse terminology is used to select the admission to OR or the CT to OR time based on the transfer status of the patient and placed in the new column TTOR. Additionally, a column called Month is added in order to facilitate plotting later.
 
 ```{r}
 DS1NSTNA$AOR <- round(difftime(DS1NSTNA$`First OR Date/Time`, DS1NSTNA$`Admission Date/Time`, units="hours"), 2)
@@ -87,7 +95,7 @@ DS1NSTNA$TTOR <- ifelse(DS1NSTNA[,6] == "YES", DS1NSTNA$AOR, DS1NSTNA$CTOR)
 DS1NSTNA$Month <- month(DS1NSTNA$`First OR Date/Time`, label = TRUE, abbr = FALSE)
 ```
 
-Now, in any dataset,there are always outliers.  The shiny gadget titled "pick_points" is used to allow the user to visually exlude outliers.
+Now, in any dataset, there are always outliers.  The shiny gadget titled "pick_points" is used to allow the user to visually exlude outliers.  Unfortunately, R tends to freeze in package creation when the shiny code is included. The example is included below but is not active in the vignette to prevent freezing. If you utilize the actual function or the r markdown powerpoint file included in the package, you can manually pick points with the shiny gadget.
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 #pick_points <- function(data, x, y) {
@@ -141,7 +149,9 @@ Now, in any dataset,there are always outliers.  The shiny gadget titled "pick_po
 #DS1NSTNA$Selected <- pick_points(DS1NSTNA, ~`First OR Date/Time`, ~TTOR)
 ```
 
-The dataset is then edited to filter out the points as selected by the user. A column with category is created to facilitate plotting based on diagnosis code.
+The dataset is then edited to filter out the points as selected by the user. We have converted the true code to text and added a manual filter due to the limitation of the vignette to run shiny during package creation in order to show what the plots would look like after the user filters the outliers.
+
+A column named Cat is created to facilitate plotting based on diagnosis code category. 
 
 ```{r}
 #DS1NSTNAS <- DS1NSTNA %>% filter(Selected ==TRUE)
@@ -183,7 +193,7 @@ plotavbymonth
 ```{r}
 avbymonthNSTI <- aggregate(x=NSTISet$TTOR, by = list(NSTISet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthNSTI
-plotavbymonthNSTI <- ggplot(avbymonthNSTI, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for NSTI", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthNSTI <- ggplot(avbymonthNSTI, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for NSTI", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
 plotavbymonthNSTI
 
 ```
@@ -191,17 +201,71 @@ plotavbymonthNSTI
 ```{r}
 avbymonthIsch <- aggregate(x=IschSet$TTOR, by = list(IschSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthIsch
-plotavbymonthIsch <- ggplot(avbymonthIsch, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Ischemia", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthIsch <- ggplot(avbymonthIsch, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for Ischemia", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
 plotavbymonthIsch
 
+boxp <- ggplot(FinalSet, aes(Cat, as.numeric(TTOR))) + geom_boxplot(fill="steelblue", outlier.shape = NA) + labs(title = "Time to OR by Diagnosis", x= "Diagnosis", y= "Time to OR in Hours") + theme_light() + theme(plot.title = element_text(hjust = 0.5)) + geom_jitter(width=0.05, color = "red") 
+boxp
 ```
 
 ```{r}
 avbymonthPerf <- aggregate(x=PerfSet$TTOR, by = list(PerfSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthPerf
-plotavbymonthPerf <- ggplot(avbymonthPerf, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Perforations", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthPerf <- ggplot(avbymonthPerf, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for Perforations", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
 plotavbymonthPerf
 ```
+
+As a second example, we will show how the plots would appear without outlier removal from this data sample. This will exhibit the benefit of the built-in shiny gadget.  We have not repeated the code, which is unchanged from above except for not filtering the outliers.
+
+```{r, echo = FALSE}
+NSTISet <- DS1NSTNA %>% filter(`Primary Surgical Dx Code`  %in% c("M72.6", "N49.3"))
+NSTISet$Cat <- "NSTI"
+IschSet <- DS1NSTNA %>% filter(str_detect(`Primary Surgical Dx Code`, "^K55"))
+IschSet$Cat <- "ISCH"
+PerfSet <- DS1NSTNA %>% filter(str_detect(`Primary Surgical Dx Code`, "^K63|K25|K26|K57"))
+PerfSet$Cat <- "PERF"
+FinalSet <- rbind(NSTISet, IschSet, PerfSet)
+
+boxp <- ggplot(FinalSet, aes(Cat, as.numeric(TTOR))) + geom_boxplot(fill="steelblue", outlier.shape = NA) + labs(title = "Time to OR by Diagnosis", x= "Diagnosis", y= "Time to OR in Hours") + theme_light() + theme(plot.title = element_text(hjust = 0.5)) + geom_jitter(width=0.05, color = "red") 
+boxp
+
+avtimes <- as.numeric(c(round(mean(NSTISet$TTOR), 2), round(mean(IschSet$TTOR), 2), round(mean(PerfSet$TTOR),2)))
+titles <- c("NSTI", "Ischemia", "Perforation")
+avbydx <- cbind.data.frame(titles, avtimes)
+
+Plotavbydx <- ggplot(avbydx, aes(x = titles,y = avtimes)) +geom_col(fill="steelblue") + labs(title = "YTD Average Time to OR", x= "Diagnosis", y= "Time to OR in Hours") + theme(plot.title = element_text(hjust = 0.5)) + geom_text(aes(label=avtimes), vjust=-0.3, size=3.5)+ theme_minimal() + theme(plot.title = element_text(hjust = 0.5))
+Plotavbydx
+
+avbymonth <- aggregate(x=FinalSet$TTOR, by =  list(FinalSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+#avbymonth
+plotavbymonth <- ggplot(avbymonth, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="red", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month", y= "Time to OR in Hours") +  theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=0, nudge_y = .5)
+plotavbymonth
+
+avbymonthNSTI <- aggregate(x=NSTISet$TTOR, by = list(NSTISet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+#avbymonthNSTI
+plotavbymonthNSTI <- ggplot(avbymonthNSTI, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for NSTI", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthNSTI
+
+avbymonthIsch <- aggregate(x=IschSet$TTOR, by = list(IschSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+#avbymonthIsch
+plotavbymonthIsch <- ggplot(avbymonthIsch, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for Ischemia", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthIsch
+
+boxp <- ggplot(FinalSet, aes(Cat, as.numeric(TTOR))) + geom_boxplot(fill="steelblue", outlier.shape = NA) + labs(title = "Time to OR by Diagnosis", x= "Diagnosis", y= "Time to OR in Hours") + theme_light() + theme(plot.title = element_text(hjust = 0.5)) + geom_jitter(width=0.05, color = "red") 
+boxp
+
+avbymonthPerf <- aggregate(x=PerfSet$TTOR, by = list(PerfSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
+#avbymonthPerf
+plotavbymonthPerf <- ggplot(avbymonthPerf, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR for Perforations", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
+plotavbymonthPerf
+
+
+```
+
+For the vast majority of large outliers, the diagnosis was typically not made at the time of admission or visible on the initial CT scan. By skewing the analysis with outliers, it is difficult to look at the remainder of the data, as you can see by comparing the plots before and after outlier removal. By allowing the user to rapidly remove the outliers utilizing shiny, the plots generated are much more helpful for understanding the data and much more rapidly created that manually editing excel files and generating plots with Office.
+
+
+
 
 # **Future Work**
 
