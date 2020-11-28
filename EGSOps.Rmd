@@ -113,12 +113,14 @@ FinalSet <- rbind(NSTISet, IschSet, PerfSet)
 ```
 
 
-```{r}
+```{r, echo=FALSE, eval=TRUE}
 boxp <- ggplot(FinalSet, aes(Cat, as.numeric(TTOR))) + geom_boxplot(fill="steelblue", outlier.shape = NA) + labs(title = "Time to OR by Diagnosis", x= "Diagnosis", y= "Time to OR in Hours") + theme_light() + theme(plot.title = element_text(hjust = 0.5)) + geom_jitter(width=0.05, color = "red") 
 boxp
 ```
 
-```{r}
+
+
+```{r, echo=FALSE, eval=TRUE}
 avtimes <- as.numeric(c(round(mean(NSTISet$TTOR), 2), round(mean(IschSet$TTOR), 2), round(mean(PerfSet$TTOR),2)))
 titles <- c("NSTI", "Ischemia", "Perforation")
 avbydx <- cbind.data.frame(titles, avtimes)
@@ -128,28 +130,36 @@ Plotavbydx
 
 ```
 
-```{r}
+
+
+```{r, echo=FALSE, eval=TRUE}
 avbymonth <- aggregate(x=FinalSet$TTOR, by =  list(FinalSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonth
 plotavbymonth <- ggplot(avbymonth, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="red", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month", y= "Time to OR in Hours") +  theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=0, nudge_y = .5)
 plotavbymonth
 ```
 
-```{r}
+
+
+```{r, echo=FALSE, eval=TRUE}
 avbymonthNSTI <- aggregate(x=NSTISet$TTOR, by = list(NSTISet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthNSTI
 plotavbymonthNSTI <- ggplot(avbymonthNSTI, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for NSTI", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
 plotavbymonthNSTI
 
 ```
-```{r}
+
+
+```{r, echo=FALSE, eval=TRUE}
 avbymonthIsch <- aggregate(x=IschSet$TTOR, by = list(IschSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthIsch
 plotavbymonthIsch <- ggplot(avbymonthIsch, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Ischemia", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
 plotavbymonthIsch
 
 ```
-```{r}
+
+
+```{r, echo=FALSE, eval=TRUE}
 avbymonthPerf <- aggregate(x=PerfSet$TTOR, by = list(PerfSet$Month), FUN = mean) %>% rename(Month=Group.1, Average = `Transfer in?`)
 #avbymonthPerf
 plotavbymonthPerf <- ggplot(avbymonthPerf, aes(x = Month, y = Average, group = 1, label = round(Average, digits = 2))) + geom_line(color="green", size=1.2) + geom_point(color = "blue", size = 2) + labs(title = "Average Time to OR by Month for Perforations", y= "Time to OR in Hours") + theme_minimal() + theme(plot.title = element_text(hjust = 0.5)) + geom_text(nudge_x=-0.2)
